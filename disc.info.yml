@@ -1,0 +1,6 @@
+name: Disc Module
+description: The Disc module.
+package: Custom
+type: module
+version: 1.0
+core: 8.x

@@ -1,0 +1,7 @@
+hello.content:
+  path: '/disc'
+  defaults:
+    _controller: '\Drupal\disc\Controller\DiscController::content'
+    _title: 'Disc'
+  requirements:
+    _permission: 'access content'
