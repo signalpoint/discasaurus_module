@@ -1,10 +1,10 @@
 <?php
 /**
  * @file
- * Contains \Drupal\hello_world\Controller\HelloController.
+ * Contains \Drupal\disc\Controller\DiscController.
  */
-namespace Drupal\hello_world\Controller;
-class HelloController {
+namespace Drupal\disc\Controller;
+class DiscController {
     public function content() {
         return array(
             '#type' => 'markup',

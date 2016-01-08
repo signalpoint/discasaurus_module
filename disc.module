@@ -1,0 +1,22 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_form_alter().
+ */
+function disc_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  drupal_set_message($form_id);
+
+  switch ($form_id) {
+    case 'node_article_form':
+    case 'node_article_edit_form':
+      //kint($form['actions']);
+      $form['actions']['publish']['#submit'][] = 'disc_node_edit_submit';
+      break;
+  }
+
+}
+
+function disc_node_edit_submit($form, FormStateInterface $form_state) {
+}

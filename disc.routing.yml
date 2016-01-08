@@ -1,4 +1,4 @@
-hello.content:
+disc.content:
   path: '/disc'
   defaults:
     _controller: '\Drupal\disc\Controller\DiscController::content'
