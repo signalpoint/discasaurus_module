@@ -6,17 +6,26 @@ use Drupal\Core\Form\FormStateInterface;
  * Implements hook_form_alter().
  */
 function disc_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  drupal_set_message($form_id);
+//  drupal_set_message($form_id);
+//  kint($form['actions']);
 
   switch ($form_id) {
     case 'node_article_form':
     case 'node_article_edit_form':
-      //kint($form['actions']);
-      $form['actions']['publish']['#submit'][] = 'disc_node_edit_submit';
+      //$form['actions']['publish']['#submit'][] = 'disc_form_submit';
+      break;
+    case 'user_login_form':
+      //$form['actions']['submit']['#submit'][] = 'disc_form_submit';
       break;
   }
 
 }
 
-function disc_node_edit_submit($form, FormStateInterface $form_state) {
+function disc_form_submit($form, FormStateInterface $form_state) {
+  //$values = $form_state->getValues();
+}
+
+function disc_switch_db($drupalVersion = 6) {
+  if ($drupalVersion == 6) { \Drupal\Core\Database\Database::setActiveConnection('external'); }
+  else { \Drupal\Core\Database\Database::setActiveConnection(); }
 }

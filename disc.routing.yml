@@ -5,3 +5,10 @@ disc.content:
     _title: 'Disc'
   requirements:
     _permission: 'access content'
+disc.batch:
+  path: '/disc-batch'
+  defaults:
+    _controller: '\Drupal\disc\Controller\DiscBatchController::content'
+    _title: 'Disc Batch'
+  requirements:
+    _permission: 'administer content'
