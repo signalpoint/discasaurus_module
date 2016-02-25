@@ -29,3 +29,133 @@ function disc_switch_db($drupalVersion = 6) {
   if ($drupalVersion == 6) { \Drupal\Core\Database\Database::setActiveConnection('external'); }
   else { \Drupal\Core\Database\Database::setActiveConnection(); }
 }
+
+function d6_node_load($nid, $type) {
+  //drupal_set_message(t('Loading %nid (%type)', array('%nid' => $nid, '%type' => $type)));
+  disc_switch_db(6);
+  $query = db_select('node', 'n')
+    ->fields('n')
+    ->condition('n.nid', $nid)
+    ->execute();
+  disc_switch_db(8);
+  $node = $query->fetchAssoc();
+  d6_node_load_extras($node);
+  //dpm($node);
+  return $node;
+}
+
+function d6_node_load_extras(&$node) {
+  switch ($node['type']) {
+
+    // Courses.
+    case 'dg_course':
+
+      // Grab the course's course location node id.
+      disc_switch_db(6);
+      $query = db_select('content_type_dg_course', 'ct')
+        ->fields('ct', array('field_dg_course_location_nid'))
+        ->condition('ct.nid', $node['nid'])
+        ->condition('ct.vid', $node['vid'])
+        ->execute();
+      disc_switch_db(8);
+      $contentType = $query->fetchAssoc();
+      $courseLocationNid = $contentType['field_dg_course_location_nid'];
+
+      // Load the course location node.
+      $courseLocation = d6_node_load($courseLocationNid, 'dg_course_location');
+
+      // Load the address information.
+      disc_switch_db(6);
+      $query = db_select('location_instance', 'li');
+      $query->join('location', 'l', 'li.lid = l.lid');
+      $query->fields('li', array('lid'))
+        ->fields('l')
+        ->condition('li.nid', $courseLocation['nid'])
+        ->condition('li.vid', $courseLocation['vid']);
+      $location = $query->execute()->fetchAssoc();
+      disc_switch_db(8);
+
+      // Convert the D6 location to a D8 address.
+      $country = strtoupper($location['country']);
+      $province = strtoupper($location['province']);
+
+      $node["field_address"] = array(array(
+        "langcode" => null,
+        "country_code" => $country,
+        "administrative_area" => "{$country}-{$province}",
+        "locality" => $location['city'],
+        "dependent_locality" => null,
+        "postal_code" => $location['postal_code'],
+        "sorting_code" => null,
+        "address_line1" => $location['street'],
+        "address_line2" => $location['additional'],
+        "organization" => "",
+        "recipient" => ""
+      ));
+
+      break;
+
+    // Holes.
+    case 'dg_hole':
+
+      // Grab the content type field data.
+      disc_switch_db(6);
+      $query = db_select('content_type_dg_hole', 'ct')
+        ->fields('ct', array(
+          'field_dg_hole_course_nid',
+          'field_dg_hole_name_value',
+          'field_dg_hole_tee_value',
+          'field_dg_hole_par_value',
+          'field_dg_hole_distance_value'
+        ))
+        ->condition('ct.nid', $node['nid'])
+        ->condition('ct.vid', $node['vid'])
+        ->execute();
+      disc_switch_db(8);
+      $hole = $query->fetchAssoc();
+
+      // Convert the D6 content type data to D8..
+      $node['field_name'] = array(array('value' => $hole['field_dg_hole_name_value']));
+      $node['field_par'] = array(array('value' => $hole['field_dg_hole_par_value']));
+      $node['field_distance'] = array(array('value' => $hole['field_dg_hole_distance_value']));
+      $node['field_course'] = array(array('target_id' => d8_nid_from_d6_nid($hole['field_dg_hole_course_nid'])));
+      $node['field_tee'] = array(array('target_id' => $hole['field_dg_hole_tee_value']));
+
+      break;
+
+  }
+}
+
+function d6_node_to_d8($node) {
+  
+  // Convert the node type and set aside its D6 node id.
+  $node['type'] = d6_content_type_to_d8($node['type']);
+  $node['field_d6_nid'] = array(array('value' => $node['nid']));
+  unset($node['nid']);
+
+  // Remove any protected vars.
+  $remove = array('vid', 'language', 'tnid', 'translate');
+  foreach($remove as $prop) { if(isset($node[$prop])) { unset($node[$prop]); } }
+  
+  //dpm($node);
+  return \Drupal\node\Entity\Node::create($node);
+}
+
+function d6_content_type_to_d8($type) {
+  $map = array(
+    'dg_course' => 'course',
+    'dg_hole' => 'hole',
+    'dg_layout' => 'layout',
+    'dg_score' => 'score'
+  );
+  return isset($map[$type]) ? $map[$type] : NULL;
+}
+
+function d8_nid_from_d6_nid($nid) {
+  $query = db_select('node__field_d6_nid', 'n')
+    ->fields('n', array('entity_id'))
+    ->condition('n.field_d6_nid_value', $nid)
+    ->execute();
+  $result = $query->fetchAssoc();
+  return $result['entity_id'];
+}

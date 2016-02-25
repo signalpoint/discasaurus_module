@@ -13,33 +13,82 @@ use \Drupal\Core\Url;
 class DiscBatchController {
   public function content() {
 
-    $type = $_GET['type'];
+    $type = isset($_GET['type']) ? $_GET['type'] : NULL;
     $operations = [];
+
+    $limit = 72;
 
     switch ($type) {
 
-      // Course locations.
-      case 'dg_course_location':
+      // Courses.
+      case 'dg_course':
 
-
+        // Load all the courses.
         disc_switch_db(6);
         $result = db_select('node', 'n')
           ->fields('n', array('nid', 'title'))
           ->condition('n.type', $type)
           ->orderBy('n.nid', 'ASC')
-          ->range(0, 10)
+          ->range(0, $limit)
           ->execute();
+        $courses = $result->fetchAll();
         disc_switch_db(8);
-        disc_switch_db(8);
-        foreach ($result as $item) {
-          $operations[] = array(
-            'disc_migrate',
-            array('dg_course_location', array(
-              'nid' => $result->nid,
-              'title' => $result->title
-            ))
+
+        // Build an operation for each course.
+        foreach ($courses as $course) {
+          $args = array(
+            'nid' => $course->nid,
+            'title' => $course->title
           );
+          $operations[] = array('disc_migrate', array($type, $args));
         }
+
+        break;
+
+      // Holes.
+      case 'dg_hole':
+
+        // Determine how many holes there are.
+        disc_switch_db(6);
+        $holeCount = db_select('node')
+          ->fields(NULL, array('nid'))
+          ->condition('type', $type)
+          ->countQuery()
+          ->execute()
+          ->fetchField();
+        disc_switch_db(8);
+        //dpm($holeCount);
+
+        // Set up paging.
+        $pageSize = $limit;
+        $pages = ceil($holeCount / $pageSize);
+        $page = isset($_GET['page']) ? $_GET['page'] : 0;
+        dpm('pageSize: ' . $pageSize);
+        dpm('pages: ' . $pages);
+        dpm('page: ' . $page);
+
+        //dpm($results->fetchassoc());
+
+        // Load a page of holes.
+        disc_switch_db(6);
+        $result = db_select('node', 'n')
+          ->fields('n', array('nid'))
+          ->condition('n.type', $type)
+          ->orderBy('n.nid', 'ASC')
+          ->range($page * $pageSize, $pageSize)
+          ->execute();
+        $holes = $result->fetchAll();
+        disc_switch_db(8);
+
+        // Build an operation for each hole.
+        foreach ($holes as $hole) {
+          $args = array(
+            'nid' => $hole->nid,
+            'page' => $page
+          );
+          $operations[] = array('disc_migrate', array($type, $args));
+        }
+
         break;
 
       // Migration type chooser.
@@ -47,10 +96,9 @@ class DiscBatchController {
         return array(
           '#theme' => 'item_list',
           '#items' => array(
-            Link::createFromRoute('Course locations',
-              'disc.batch',
-              ['type' => 'dg_course_location']
-            )
+            Link::createFromRoute('Courses', 'disc.batch', ['type' => 'dg_course']),
+            Link::createFromRoute('Holes', 'disc.batch', ['type' => 'dg_hole']),
+            Link::createFromRoute('Layouts', 'disc.batch', ['type' => 'dg_layout'])
           )
         );
         break;
