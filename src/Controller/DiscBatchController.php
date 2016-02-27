@@ -16,7 +16,7 @@ class DiscBatchController {
     $type = isset($_GET['type']) ? $_GET['type'] : NULL;
     $operations = [];
 
-    $limit = 72;
+    $limit = 5;
 
     switch ($type) {
 
@@ -45,45 +45,47 @@ class DiscBatchController {
 
         break;
 
-      // Holes.
-      case 'dg_hole':
+      // Users.
+      case 'user':
 
-        // Determine how many holes there are.
+        // Determine how many users there are.
         disc_switch_db(6);
-        $holeCount = db_select('node')
-          ->fields(NULL, array('nid'))
-          ->condition('type', $type)
+        $userCount = db_select('users')
+          ->fields(NULL, array('uid'))
+          ->condition('status', 1)
+          ->condition('uid', 1, '<>')
+          ->condition('name', 'tyler', '<>')
           ->countQuery()
           ->execute()
           ->fetchField();
         disc_switch_db(8);
-        //dpm($holeCount);
+        //dpm($userCount);
 
         // Set up paging.
         $pageSize = $limit;
-        $pages = ceil($holeCount / $pageSize);
+        $pages = ceil($userCount / $pageSize);
         $page = isset($_GET['page']) ? $_GET['page'] : 0;
         dpm('pageSize: ' . $pageSize);
         dpm('pages: ' . $pages);
         dpm('page: ' . $page);
 
-        //dpm($results->fetchassoc());
-
-        // Load a page of holes.
+        // Load a page of users.
         disc_switch_db(6);
-        $result = db_select('node', 'n')
-          ->fields('n', array('nid'))
-          ->condition('n.type', $type)
-          ->orderBy('n.nid', 'ASC')
+        $result = db_select('users', 'u')
+          ->fields('u', array('uid'))
+          ->condition('u.status', 1)
+          ->condition('uid', 1, '<>')
+          ->condition('name', 'tyler', '<>')
+          ->orderBy('u.uid', 'ASC')
           ->range($page * $pageSize, $pageSize)
           ->execute();
-        $holes = $result->fetchAll();
+        $users = $result->fetchAll();
         disc_switch_db(8);
 
-        // Build an operation for each hole.
-        foreach ($holes as $hole) {
+        // Build an operation for each user.
+        foreach ($users as $user) {
           $args = array(
-            'nid' => $hole->nid,
+            'uid' => $user->uid,
             'page' => $page
           );
           $operations[] = array('disc_migrate', array($type, $args));
@@ -91,14 +93,61 @@ class DiscBatchController {
 
         break;
 
+      // Holes.
+//      case 'dg_hole':
+//
+//        // Determine how many holes there are.
+//        disc_switch_db(6);
+//        $holeCount = db_select('node')
+//          ->fields(NULL, array('nid'))
+//          ->condition('type', $type)
+//          ->countQuery()
+//          ->execute()
+//          ->fetchField();
+//        disc_switch_db(8);
+//        //dpm($holeCount);
+//
+//        // Set up paging.
+//        $pageSize = $limit;
+//        $pages = ceil($holeCount / $pageSize);
+//        $page = isset($_GET['page']) ? $_GET['page'] : 0;
+//        dpm('pageSize: ' . $pageSize);
+//        dpm('pages: ' . $pages);
+//        dpm('page: ' . $page);
+//
+//        //dpm($results->fetchassoc());
+//
+//        // Load a page of holes.
+//        disc_switch_db(6);
+//        $result = db_select('node', 'n')
+//          ->fields('n', array('nid'))
+//          ->condition('n.type', $type)
+//          ->orderBy('n.nid', 'ASC')
+//          ->range($page * $pageSize, $pageSize)
+//          ->execute();
+//        $holes = $result->fetchAll();
+//        disc_switch_db(8);
+//
+//        // Build an operation for each hole.
+//        foreach ($holes as $hole) {
+//          $args = array(
+//            'nid' => $hole->nid,
+//            'page' => $page
+//          );
+//          $operations[] = array('disc_migrate', array($type, $args));
+//        }
+//
+//        break;
+
       // Migration type chooser.
       default:
         return array(
           '#theme' => 'item_list',
           '#items' => array(
             Link::createFromRoute('Courses', 'disc.batch', ['type' => 'dg_course']),
-            Link::createFromRoute('Holes', 'disc.batch', ['type' => 'dg_hole']),
-            Link::createFromRoute('Layouts', 'disc.batch', ['type' => 'dg_layout'])
+            Link::createFromRoute('Users', 'disc.batch', ['type' => 'user']),
+            Link::createFromRoute('Scores', 'disc.batch', ['type' => 'dg_score']),
+            Link::createFromRoute('Favorite Players', 'disc.batch', ['type' => 'favorite_players'])
           )
         );
         break;

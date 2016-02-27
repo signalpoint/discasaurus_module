@@ -30,6 +30,38 @@ function disc_switch_db($drupalVersion = 6) {
   else { \Drupal\Core\Database\Database::setActiveConnection(); }
 }
 
+function d6_user_load($uid) {
+  disc_switch_db(6);
+  $query = db_select('users', 'u')
+    ->fields('u')
+    ->condition('u.uid', $uid)
+    ->execute();
+  disc_switch_db(8);
+  $user = $query->fetchAssoc();
+  d6_user_load_extras($user);
+  //dpm($node);
+  return $user;
+}
+
+function d6_user_load_extras(&$user) {
+  unset($user['pass']);
+  $user['data'] = isset($user['data']) ? unserialize($user['data']) : NULL;
+}
+
+function d6_user_to_d8($user) {
+
+  // Set aside its D6 user id.
+  $user['field_d6_uid'] = array(array('value' => $user['uid']));
+  unset($user['uid']);
+
+  // Remove any protected vars.
+  $remove = array('pass', 'mode', 'sort', 'translate', 'threshold', 'theme', 'signature', 'signature_format', 'language', 'init');
+  foreach($remove as $prop) { if(isset($user[$prop])) { unset($user[$prop]); } }
+
+  //dpm($user);
+  return \Drupal\user\Entity\User::create($user);
+}
+
 function d6_node_load($nid, $type) {
   //drupal_set_message(t('Loading %nid (%type)', array('%nid' => $nid, '%type' => $type)));
   disc_switch_db(6);
@@ -114,12 +146,34 @@ function d6_node_load_extras(&$node) {
       disc_switch_db(8);
       $hole = $query->fetchAssoc();
 
-      // Convert the D6 content type data to D8..
+      // Convert the D6 content type data to D8.
       $node['field_name'] = array(array('value' => $hole['field_dg_hole_name_value']));
       $node['field_par'] = array(array('value' => $hole['field_dg_hole_par_value']));
       $node['field_distance'] = array(array('value' => $hole['field_dg_hole_distance_value']));
       $node['field_course'] = array(array('target_id' => d8_nid_from_d6_nid($hole['field_dg_hole_course_nid'])));
       $node['field_tee'] = array(array('target_id' => $hole['field_dg_hole_tee_value']));
+
+      break;
+
+    // Layouts.
+    case 'dg_layout':
+
+      // Grab the content type field data.
+      disc_switch_db(6);
+      $query = db_select('content_type_dg_layout', 'ct')
+        ->fields('ct', array(
+          'field_dg_layout_course_nid',
+          'field_dg_layout_hole_config_value'
+        ))
+        ->condition('ct.nid', $node['nid'])
+        ->condition('ct.vid', $node['vid'])
+        ->execute();
+      disc_switch_db(8);
+      $layout = $query->fetchAssoc();
+
+      // Convert the D6 content type data to D8.
+      $node['field_course'] = array(array('target_id' => d8_nid_from_d6_nid($layout['field_dg_layout_course_nid'])));
+      $node['field_dg_layout_hole_config_value'] = $layout['field_dg_layout_hole_config_value'];
 
       break;
 
@@ -158,4 +212,38 @@ function d8_nid_from_d6_nid($nid) {
     ->execute();
   $result = $query->fetchAssoc();
   return $result['entity_id'];
+}
+
+/**
+ * Given a Drupal 6 course node id, this will return an associative arrays of
+ * all the Drupal 6 hole node ids associated with the course.
+ * @param $nid
+ */
+function d6_course_holes($nid) {
+  disc_switch_db(6);
+  $query = db_select('content_type_dg_hole', 'ct')
+    ->fields('ct', array('nid'))
+    ->condition('ct.field_dg_hole_course_nid', $nid)
+    ->orderBy('ct.nid', 'ASC')
+    ->groupBy('ct.nid')
+    ->execute();
+  disc_switch_db(8);
+  return array_keys($query->fetchAllAssoc('nid'));
+}
+
+/**
+ * Given a Drupal 6 course node id, this will return an associative arrays of
+ * all the Drupal 6 layout node ids associated with the course.
+ * @param $nid
+ */
+function d6_course_layouts($nid) {
+  disc_switch_db(6);
+  $query = db_select('content_type_dg_layout', 'ct')
+    ->fields('ct', array('nid'))
+    ->condition('ct.field_dg_layout_course_nid', $nid)
+    ->orderBy('ct.nid', 'ASC')
+    ->groupBy('ct.nid')
+    ->execute();
+  disc_switch_db(8);
+  return array_keys($query->fetchAllAssoc('nid'));
 }

@@ -25,39 +25,103 @@ function disc_migrate($type, $options = array(), &$context) {
 
   // START HEAVING LIFTING...
 
-  $nid = $options['nid'];
+  $save = TRUE; // Set to true to start saving nodes, false for debugging.
 
   switch ($type) {
 
     // Courses.
     case 'dg_course':
 
-      $d6_course = d6_node_load($nid, $type);
+      $nid = $options['nid'];
 
+      // Load the Drupal 6 course node, convert it to a Drupal 8 course node and
+      // save the new Drupal 8 node.
+      $d6_course = d6_node_load($nid, $type);
       $message = 'Migrating ' . $d6_course['title'];
       $context['results'][] = $d6_course['nid'];
-
       $d8_course = d6_node_to_d8($d6_course);
-      //$d8_course->save();
+
+      // @TODO course images
+
+      if ($save) {
+        $d8_course->save();
+      }
+
+      // Along the way, store a mapping of D6 hole nids to their respective D8
+      // nids, that way we don't have to constantly look it up in the DB.
+      $hole_nodes = array();
+
+      // Load all the Drupal 6 hole nodes associated with this course.
+      $d6_holes = d6_course_holes($nid);
+      //dpm($d6_holes);
+      if (!isset($d6_holes) || empty($d6_holes)) { break; }
+      foreach($d6_holes as $d6_hole_nid) {
+        $d6_hole = d6_node_load($d6_hole_nid, 'dg_hole');
+        //dpm($d6_hole);
+        $d8_hole = d6_node_to_d8($d6_hole);
+
+        // @TODO hole images
+
+        if ($save) {
+          $d8_hole->save();
+          $hole_nodes[$d6_hole_nid] = $d8_hole->id();
+        }
+
+      }
+
+      // Load all the Drupal 6 layouts nodes associated with this course.
+      $d6_layouts = d6_course_layouts($nid);
+      //dpm($d6_layouts);
+      if (!isset($d6_layouts) || empty($d6_layouts)) { break; }
+      foreach($d6_layouts as $d6_layout_nid) {
+        $d6_layout = d6_node_load($d6_layout_nid, 'dg_layout');
+
+        // Explode all the target ids on the layout's holes entity reference
+        // field.
+        $holes = explode(',', $d6_layout['field_dg_layout_hole_config_value']);
+        unset($d6_layout['field_dg_layout_hole_config_value']);
+        if (!empty($holes)) {
+          $d6_layout['field_holes'] = array();
+          foreach($holes as $d6_hole_nid) {
+            $d6_layout['field_holes'][] = array('target_id' => $d6_hole_nid);
+          }
+        }
+        //dpm($d6_layout);
+
+        $d8_layout = d6_node_to_d8($d6_layout);
+        if ($save) {
+          $d8_layout->save();
+        }
+      }
 
       break;
-    
-    // Holes.
-    case 'dg_hole':
 
-      $d6_hole = d6_node_load($nid, $type);
+    case 'user':
 
-      $message = 'Migrating ' . $d6_hole['title'];
-      $context['results'][] = array(
-        'nid' => $d6_hole['nid'],
-        'type' => $type,
-        'page' => $options['page']
-      );
+      $uid = $options['uid'];
 
-      $d8_hole = d6_node_to_d8($d6_hole);
-      $d8_hole->save();
-      
+      $d6_user = d6_user_load($uid);
+      $message = 'Migrating ' . $d6_user['name'] . "({$d6_user['uid']})";
+      $context['results'][] = $d6_user['uid'];
+      //dpm($d6_user);
+
+      // @TODO user picture
+      // @TODO user profile values
+      // @TODO favorite courses
+
+      $d8_user = d6_user_to_d8($d6_user);
+
+      if ($save) {
+        $d8_user->save();
+      }
+
       break;
+
+//    case 'dg_score':
+//      // When importing a score check for other scores posted within a few
+//      // seconds of each other at the same course, and place them all together
+//      // on a round.
+//      break;
 
     // WTF.
     default:
@@ -77,7 +141,6 @@ function disc_migrate_finished_callback($success, $results, $operations) {
       'One post processed.',
       '@count posts processed.'
     );
-    dpm($results[0]);
   }
   else {
     $message = t('Finished with an error.');
