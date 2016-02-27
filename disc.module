@@ -95,6 +95,8 @@ function d6_node_load_extras(&$node) {
 
       // Load the course location node.
       $courseLocation = d6_node_load($courseLocationNid, 'dg_course_location');
+      $node['field_course_location_nid'] = $courseLocationNid;
+      $node['field_course_location_vid'] = $courseLocation['vid'];
 
       // Load the address information.
       disc_switch_db(6);
@@ -246,4 +248,58 @@ function d6_course_layouts($nid) {
     ->execute();
   disc_switch_db(8);
   return array_keys($query->fetchAllAssoc('nid'));
+}
+
+function d6_course_location_images($nid, $vid) {
+  disc_switch_db(6);
+  $query = db_select('content_field_dg_course_location_images', 'cf');
+  $query->join('files', 'f', 'cf.field_dg_course_location_images_fid = f.fid');
+  $query->fields('cf', array(
+    'field_dg_course_location_images_fid',
+    'field_dg_course_location_images_data'
+    )
+  )->fields('f')
+    ->condition('cf.field_dg_course_location_images_fid', 'NULL', '<>')
+    ->condition('cf.nid', $nid)
+    ->condition('cf.vid', $vid)
+    ->orderBy('cf.delta', 'ASC');
+  $results = $query->execute()->fetchAll();
+  disc_switch_db(8);
+  $images = array();
+  if (!empty($results)) {
+    foreach ($results as $result) {
+      $images[$result->field_dg_course_location_images_fid] = $result;
+      if (isset($result->field_dg_course_location_images_data)) {
+        $result->field_dg_course_location_images_data = unserialize($result->field_dg_course_location_images_data);
+      }
+    }
+  }
+  return $images;
+}
+
+function d6_hole_images($nid, $vid) {
+  disc_switch_db(6);
+  $query = db_select('content_field_dg_hole_images', 'cf');
+  $query->join('files', 'f', 'cf.field_dg_hole_images_fid = f.fid');
+  $query->fields('cf', array(
+      'field_dg_hole_images_fid',
+      'field_dg_hole_images_data'
+    )
+  )->fields('f')
+    ->condition('cf.field_dg_hole_images_fid', 'NULL', '<>')
+    ->condition('cf.nid', $nid)
+    ->condition('cf.vid', $vid)
+    ->orderBy('cf.delta', 'ASC');
+  $results = $query->execute()->fetchAll();
+  disc_switch_db(8);
+  $images = array();
+  if (!empty($results)) {
+    foreach ($results as $result) {
+      $images[$result->field_dg_hole_images_fid] = $result;
+      if (isset($result->field_dg_hole_images_data)) {
+        $result->field_dg_hole_images_data = unserialize($result->field_dg_hole_images_data);
+      }
+    }
+  }
+  return $images;
 }
