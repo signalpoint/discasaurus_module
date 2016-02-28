@@ -154,16 +154,37 @@ function disc_migrate($type, $options = array(), &$context) {
       $uid = $options['uid'];
 
       $d6_user = d6_user_load($uid);
+      //dpm($d6_user);
+      
       $message = 'Migrating ' . $d6_user['name'] . "({$d6_user['uid']})";
       $context['results'][] = $d6_user['uid'];
-      //dpm($d6_user);
-
-      // @TODO user picture
-      // @TODO user profile values
-      // @TODO favorite courses
 
       $d8_user = d6_user_to_d8($d6_user);
 
+      // User image.
+      if (isset($d6_user['profile']['profile']['picture']) && !empty($d6_user['profile']['profile']['picture'])) {
+        $image = $d6_user['profile']['profile']['picture'];
+        $d8_user->user_picture = array();
+        $data = file_get_contents('http://www.discasaurus.com/' . $image['filepath']);
+        $directoryPath = str_replace('/' . $image['filename'], '', $image['filepath']);
+        if (!file_exists($directoryPath)) {
+          if (!mkdir($directoryPath, 0775, true)) {
+            drupal_set_message('Failed to create directory: ' . $directoryPath, 'error');
+          }
+        }
+        $filePath = 'public://' . str_replace('sites/default/files/', '', $image['filepath']);
+        $file = file_save_data($data, $filePath, FILE_EXISTS_REPLACE);
+        if ($file) {
+          $d8_user->user_picture[] = array(
+            'target_id' => $file->id()
+          );
+        }
+      }
+      
+      // @TODO user profile values
+      // @TODO favorite courses
+
+      
       if ($save) { $d8_user->save(); }
 
       break;

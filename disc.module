@@ -45,7 +45,26 @@ function d6_user_load($uid) {
 
 function d6_user_load_extras(&$user) {
   unset($user['pass']);
+  // Unserialize their data and load their profile node.
   $user['data'] = isset($user['data']) ? unserialize($user['data']) : NULL;
+  disc_switch_db(6);
+  $query = db_select('node', 'n')
+    ->fields('n')
+    ->condition('n.uid', $user['uid'])
+    ->condition('n.type', 'profile')
+    ->execute();
+  disc_switch_db(8);
+  $user['profile'] = $query->fetchAssoc();
+  d6_node_load_extras($user['profile']);
+
+  // Convert the D6 content type data to D8.
+  $user['field_scores_posted'] = array(array('value' => $user['profile']['profile']['field_dg_profile_scores_posted_value']));
+  $user['field_rounds_per_month'] = array(array('value' => $user['profile']['profile']['field_dg_profile_rounds_per_m_value']));
+  $user['field_average_out'] = array(array('value' => $user['profile']['profile']['field_dg_profile_average_out_value']));
+  $user['field_ace_count'] = array(array('value' => $user['profile']['profile']['field_dg_profile_ace_count_value']));
+  $user['field_holes_scored'] = array(array('value' => $user['profile']['profile']['field_dg_profile_holes_scored_value']));
+  $user['field_holes_per_month'] = array(array('value' => $user['profile']['profile']['field_dg_profile_holes_per_month_value']));
+  $user['field_courses_played'] = array(array('value' => $user['profile']['profile']['field_dg_profile_cls_played_value']));
 }
 
 function d6_user_to_d8($user) {
@@ -57,6 +76,26 @@ function d6_user_to_d8($user) {
   // Remove any protected vars.
   $remove = array('pass', 'mode', 'sort', 'translate', 'threshold', 'theme', 'signature', 'signature_format', 'language', 'init');
   foreach($remove as $prop) { if(isset($user[$prop])) { unset($user[$prop]); } }
+
+  // Convert the D6 location to a D8 address.
+  if (isset($user['profile']['profile']['location'])) {
+    $location = $user['profile']['profile']['location'];
+    $country = strtoupper($location['country']);
+    $province = strtoupper($location['province']);
+    $user["field_address"] = array(array(
+      "langcode" => null,
+      "country_code" => $country,
+      "administrative_area" => "{$country}-{$province}",
+      "locality" => $location['city'],
+      "dependent_locality" => null,
+      "postal_code" => $location['postal_code'],
+      "sorting_code" => null,
+      "address_line1" => $location['street'],
+      "address_line2" => $location['additional'],
+      "organization" => "",
+      "recipient" => ""
+    ));
+  }
 
   //dpm($user);
   return \Drupal\user\Entity\User::create($user);
@@ -176,6 +215,46 @@ function d6_node_load_extras(&$node) {
       // Convert the D6 content type data to D8.
       $node['field_course'] = array(array('target_id' => d8_nid_from_d6_nid($layout['field_dg_layout_course_nid'])));
       $node['field_dg_layout_hole_config_value'] = $layout['field_dg_layout_hole_config_value'];
+
+      break;
+
+    // Profiles.
+    case 'profile':
+
+      // Grab the content type field data.
+      disc_switch_db(6);
+      $query = db_select('content_type_profile', 'ct')
+        ->fields('ct')
+        ->condition('ct.nid', $node['nid'])
+        ->condition('ct.vid', $node['vid'])
+        ->execute();
+      disc_switch_db(8);
+      $node['profile'] = $query->fetchAssoc();
+
+      // Load the profile picture, if any.
+      $fid = isset($node['profile']['field_dg_profile_picture_fid']) ?
+        $node['profile']['field_dg_profile_picture_fid'] : NULL;
+      if (!empty($fid)) {
+        disc_switch_db(6);
+        $query = db_select('files', 'f')
+          ->fields('f')
+          ->condition('f.fid', $fid)
+          ->execute();
+        $node['profile']['picture'] = $query->fetchAssoc();
+        disc_switch_db(8);
+      }
+
+      // Load the address information.
+      disc_switch_db(6);
+      $query = db_select('location_instance', 'li');
+      $query->join('location', 'l', 'li.lid = l.lid');
+      $query->fields('li', array('lid'))
+        ->fields('l')
+        ->condition('li.lid', $node['profile']['field_dg_profile_location_lid'])
+        ->condition('li.nid', $node['profile']['nid'])
+        ->condition('li.vid', $node['profile']['vid']);
+      $node['profile']['location'] = $query->execute()->fetchAssoc();
+      disc_switch_db(8);
 
       break;
 

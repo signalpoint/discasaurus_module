@@ -16,7 +16,7 @@ class DiscBatchController {
     $type = isset($_GET['type']) ? $_GET['type'] : NULL;
     $operations = [];
 
-    $limit = 1;
+    $limit = 25;
 
     // Useful D6 node ids.
     // 1538 - Mary Beth Doyle Course Location
@@ -152,7 +152,8 @@ class DiscBatchController {
             Link::createFromRoute('Courses', 'disc.batch', ['type' => 'dg_course']),
             Link::createFromRoute('Users', 'disc.batch', ['type' => 'user']),
             Link::createFromRoute('Scores', 'disc.batch', ['type' => 'dg_score']),
-            Link::createFromRoute('Favorite Players', 'disc.batch', ['type' => 'favorite_players'])
+            Link::createFromRoute('Favorite Players', 'disc.batch', ['type' => 'favorite_players']),
+            Link::createFromRoute('Comments', 'disc.batch', ['type' => 'comment'])
           )
         );
         break;
@@ -166,6 +167,6 @@ class DiscBatchController {
       'file' => drupal_get_path('module', 'disc') . '/disc.migrate.inc',
     );
     batch_set($batch);
-    return batch_process('user');
+    return batch_process('disc-batch');
   }
 }
