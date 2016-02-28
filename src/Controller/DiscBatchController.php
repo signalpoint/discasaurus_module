@@ -16,11 +16,13 @@ class DiscBatchController {
     $type = isset($_GET['type']) ? $_GET['type'] : NULL;
     $operations = [];
 
-    $limit = 25;
+    $limit = 1;
 
     // Useful D6 node ids.
     // 1538 - Mary Beth Doyle Course Location
     // 3184 - Mary Beth Doyle Course
+    // 1453 - Bandemer Course Location
+    // 3088 - Bandemer Course
 
     switch ($type) {
 
@@ -32,7 +34,7 @@ class DiscBatchController {
         $result = db_select('node', 'n')
           ->fields('n', array('nid', 'title'))
           ->condition('n.type', $type)
-          ->condition('n.nid', 3184)
+          ->condition('n.nid', 3088)
           ->orderBy('n.nid', 'ASC')
           ->range(0, $limit)
           ->execute();
@@ -81,6 +83,7 @@ class DiscBatchController {
           ->condition('u.status', 1)
           ->condition('uid', 1, '<>')
           ->condition('name', 'tyler', '<>')
+          ->condition('u.uid', 6)
           ->orderBy('u.uid', 'ASC')
           ->range($page * $pageSize, $pageSize)
           ->execute();

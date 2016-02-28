@@ -109,7 +109,7 @@ function disc_migrate($type, $options = array(), &$context) {
             if ($file) {
               $d8_hole->field_images[] = array(
                 'target_id' => $file->id(),
-                'alt' => isset($image->field_dg_hole_images_data) ?
+                'alt' => isset($image->field_dg_hole_images_data['data']) ?
                   $image->field_dg_hole_images_data['data'] : ''
               );
             }
@@ -138,7 +138,7 @@ function disc_migrate($type, $options = array(), &$context) {
         if (!empty($holes)) {
           $d6_layout['field_holes'] = array();
           foreach($holes as $d6_hole_nid) {
-            $d6_layout['field_holes'][] = array('target_id' => $d6_hole_nid);
+            $d6_layout['field_holes'][] = array('target_id' => $hole_nodes[$d6_hole_nid]);
           }
         }
         //dpm($d6_layout);
@@ -165,7 +165,7 @@ function disc_migrate($type, $options = array(), &$context) {
       if (isset($d6_user['profile']['profile']['picture']) && !empty($d6_user['profile']['profile']['picture'])) {
         $image = $d6_user['profile']['profile']['picture'];
         $d8_user->user_picture = array();
-        $data = file_get_contents('http://www.discasaurus.com/' . $image['filepath']);
+        $data = file_get_contents('http://www.discasaurus.com/' . str_replace(' ', '%20', $image['filepath']));
         $directoryPath = str_replace('/' . $image['filename'], '', $image['filepath']);
         if (!file_exists($directoryPath)) {
           if (!mkdir($directoryPath, 0775, true)) {
@@ -180,9 +180,8 @@ function disc_migrate($type, $options = array(), &$context) {
           );
         }
       }
-      
-      // @TODO user profile values
-      // @TODO favorite courses
+
+      // User favorite courses.
 
       
       if ($save) { $d8_user->save(); }
